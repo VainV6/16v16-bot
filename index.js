@@ -55,6 +55,51 @@ const commands = [
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
 ].map(command => command.toJSON());
 
+const EMPTY_VC_CLEAR_DELAY_MS = 60 * 60 * 1000;
+let emptyVcTimer = null;
+
+function isGuildVoiceEmpty(guild) {
+    return guild.channels.cache
+        .filter(channel => channel.type === ChannelType.GuildVoice)
+        .every(channel => channel.members.size === 0);
+}
+
+async function clearLogChannel(guild) {
+    const logChannel = guild.channels.cache.get(LOG_CHANNEL_ID);
+    if (!logChannel) return;
+
+    try {
+        let deletedInBatch;
+        do {
+            const messages = await logChannel.messages.fetch({ limit: 100 });
+            if (messages.size === 0) break;
+
+            const deleted = await logChannel.bulkDelete(messages, true);
+            deletedInBatch = deleted.size;
+        } while (deletedInBatch === 100);
+
+        console.log('Cleared log channel after 60 minutes of no voice activity.');
+    } catch (error) {
+        console.error('Error clearing log channel:', error);
+    }
+}
+
+function refreshEmptyVcTimer(guild) {
+    if (!LOG_CHANNEL_ID) return;
+
+    if (isGuildVoiceEmpty(guild)) {
+        if (!emptyVcTimer) {
+            emptyVcTimer = setTimeout(() => {
+                emptyVcTimer = null;
+                clearLogChannel(guild);
+            }, EMPTY_VC_CLEAR_DELAY_MS);
+        }
+    } else if (emptyVcTimer) {
+        clearTimeout(emptyVcTimer);
+        emptyVcTimer = null;
+    }
+}
+
 client.once('ready', async () => {
     console.log(`Logged in as ${client.user.tag}!`);
 
@@ -70,6 +115,9 @@ client.once('ready', async () => {
     } catch (error) {
         console.error('Error registering slash commands:', error);
     }
+
+    const guild = client.guilds.cache.get(GUILD_ID);
+    if (guild) refreshEmptyVcTimer(guild);
 });
 
 client.on('interactionCreate', async interaction => {
@@ -144,6 +192,8 @@ client.on('voiceStateUpdate', async (oldState, newState) => {
             console.error('Error sending voice log message:', error);
         }
     }
+
+    refreshEmptyVcTimer(newState.guild);
 });
 
 client.login(TOKEN);
