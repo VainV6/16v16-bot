@@ -67,10 +67,45 @@ const commands = [
 ].map(command => command.toJSON());
 
 const ROBLOX_NAME_PATTERN = /\(@([^)]+)\)/;
+const BEDWARS_PLACE_ID = 6872265039;
 
 function getRobloxUsername(member) {
     const match = member.displayName.match(ROBLOX_NAME_PATTERN);
     return match ? match[1] : null;
+}
+
+async function fetchRobloxUserIds(usernames) {
+    const userIds = new Map();
+    if (usernames.length === 0) return userIds;
+
+    const response = await fetch('https://users.roblox.com/v1/usernames/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ usernames, excludeBannedUsers: true })
+    });
+    const data = await response.json();
+
+    for (const entry of data.data ?? []) {
+        userIds.set(entry.requestedUsername.toLowerCase(), entry.id);
+    }
+    return userIds;
+}
+
+async function fetchRobloxPresence(userIds) {
+    const presences = new Map();
+    if (userIds.length === 0) return presences;
+
+    const response = await fetch('https://presence.roblox.com/v1/presence/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userIds })
+    });
+    const data = await response.json();
+
+    for (const presence of data.userPresences ?? []) {
+        presences.set(presence.userId, presence);
+    }
+    return presences;
 }
 
 const EMPTY_VC_CLEAR_DELAY_MS = 60 * 60 * 1000;
@@ -194,23 +229,46 @@ client.on('interactionCreate', async interaction => {
                 });
             }
 
-            const lines = voiceChannel.members.map(vcMember => {
-                const robloxUsername = getRobloxUsername(vcMember);
-                return robloxUsername
-                    ? `✅ ${vcMember.user.tag} → @${robloxUsername}`
-                    : `no roblox user found for @${vcMember.user.username}`;
+            await interaction.deferReply();
+
+            const membersList = [...voiceChannel.members.values()];
+            const robloxUsernames = membersList.map(getRobloxUsername);
+            const uniqueUsernames = [...new Set(robloxUsernames.filter(Boolean))];
+
+            const userIds = await fetchRobloxUserIds(uniqueUsernames);
+            const presences = await fetchRobloxPresence([...userIds.values()]);
+
+            const lines = membersList.map((vcMember, i) => {
+                const robloxUsername = robloxUsernames[i];
+                if (!robloxUsername) {
+                    return `no roblox user found for @${vcMember.user.username}`;
+                }
+
+                const userId = userIds.get(robloxUsername.toLowerCase());
+                if (!userId) {
+                    return `🔴 ${vcMember.user.tag} → @${robloxUsername} (Roblox account not found)`;
+                }
+
+                const inBedwars = presences.get(userId)?.rootPlaceId === BEDWARS_PLACE_ID;
+                const dot = inBedwars ? '🟢' : '🔴';
+                return `${dot} ${vcMember.user.tag} → @${robloxUsername}`;
             });
 
-            await interaction.reply({
+            await interaction.editReply({
                 content: `**${voiceChannel.name}** ${occupancy}\n${lines.join('\n')}`
             });
         }
     } catch (error) {
         console.error(`Error handling /${commandName}:`, error);
-        await interaction.reply({
+        const errorMessage = {
             content: 'Something went wrong running that command. Check my role position and permissions!',
             ephemeral: true
-        });
+        };
+        if (interaction.deferred || interaction.replied) {
+            await interaction.editReply(errorMessage).catch(() => {});
+        } else {
+            await interaction.reply(errorMessage).catch(() => {});
+        }
     }
 });
 
