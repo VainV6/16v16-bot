@@ -126,6 +126,11 @@ client.on('voiceStateUpdate', async (oldState, newState) => {
     let message = null;
     if (!oldState.channel && newState.channel) {
         message = `🟢 ${member.user.tag} joined ${newState.channel.name}`;
+
+        const { userLimit, members } = newState.channel;
+        if (userLimit > 0 && members.size > userLimit) {
+            message += ` ⚠️ (bypassed limit, ${members.size}/${userLimit})`;
+        }
     } else if (oldState.channel && !newState.channel) {
         message = `🔴 ${member.user.tag} left ${oldState.channel.name}`;
     } else if (oldState.channel && newState.channel && oldState.channel.id !== newState.channel.id) {
