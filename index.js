@@ -233,10 +233,18 @@ client.on('interactionCreate', async interaction => {
 
             const membersList = [...voiceChannel.members.values()];
             const robloxUsernames = membersList.map(getRobloxUsername);
-            const uniqueUsernames = [...new Set(robloxUsernames.filter(Boolean))];
+            const invokerRobloxUsername = getRobloxUsername(member);
+
+            const uniqueUsernames = [...new Set(
+                [...robloxUsernames, invokerRobloxUsername].filter(Boolean)
+            )];
 
             const userIds = await fetchRobloxUserIds(uniqueUsernames);
             const presences = await fetchRobloxPresence([...userIds.values()]);
+
+            const invokerUserId = invokerRobloxUsername ? userIds.get(invokerRobloxUsername.toLowerCase()) : null;
+            const invokerPresence = invokerUserId ? presences.get(invokerUserId) : null;
+            const invokerGameId = invokerPresence?.rootPlaceId === BEDWARS_PLACE_ID ? invokerPresence.gameId : null;
 
             const lines = membersList.map((vcMember, i) => {
                 const robloxUsername = robloxUsernames[i];
@@ -249,13 +257,17 @@ client.on('interactionCreate', async interaction => {
                     return `🔴 ${vcMember.user.tag} → @${robloxUsername} (Roblox account not found)`;
                 }
 
-                const inBedwars = presences.get(userId)?.rootPlaceId === BEDWARS_PLACE_ID;
-                const dot = inBedwars ? '🟢' : '🔴';
+                const sameLobby = invokerGameId !== null && presences.get(userId)?.gameId === invokerGameId;
+                const dot = sameLobby ? '🟢' : '🔴';
                 return `${dot} ${vcMember.user.tag} → @${robloxUsername}`;
             });
 
+            const header = invokerGameId
+                ? `**${voiceChannel.name}** ${occupancy} — matched against your Bedwars lobby`
+                : `**${voiceChannel.name}** ${occupancy} — ⚠️ you're not currently in a Bedwars server, so no one can be matched`;
+
             await interaction.editReply({
-                content: `**${voiceChannel.name}** ${occupancy}\n${lines.join('\n')}`
+                content: `${header}\n${lines.join('\n')}`
             });
         }
     } catch (error) {
