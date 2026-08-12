@@ -52,8 +52,26 @@ const commands = [
                 .addChannelTypes(ChannelType.GuildVoice)
                 .setRequired(false)
         )
+        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+
+    new SlashCommandBuilder()
+        .setName('users')
+        .setDescription('Lists the Roblox accounts of everyone in a voice channel.')
+        .addChannelOption(option =>
+            option.setName('channel')
+                .setDescription('The voice channel to list (defaults to your current channel)')
+                .addChannelTypes(ChannelType.GuildVoice)
+                .setRequired(false)
+        )
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
 ].map(command => command.toJSON());
+
+const ROBLOX_NAME_PATTERN = /\(@([^)]+)\)/;
+
+function getRobloxUsername(member) {
+    const match = member.displayName.match(ROBLOX_NAME_PATTERN);
+    return match ? match[1] : null;
+}
 
 const EMPTY_VC_CLEAR_DELAY_MS = 60 * 60 * 1000;
 let emptyVcTimer = null;
@@ -169,10 +187,28 @@ client.on('interactionCreate', async interaction => {
                 );
             }
         }
+        else if (commandName === 'users') {
+            if (voiceChannel.members.size === 0) {
+                return interaction.reply({
+                    content: `**${voiceChannel.name}** is empty.`
+                });
+            }
+
+            const lines = voiceChannel.members.map(vcMember => {
+                const robloxUsername = getRobloxUsername(vcMember);
+                return robloxUsername
+                    ? `✅ ${vcMember.user.tag} → @${robloxUsername}`
+                    : `no roblox user found for @${vcMember.user.username}`;
+            });
+
+            await interaction.reply({
+                content: `**${voiceChannel.name}** ${occupancy}\n${lines.join('\n')}`
+            });
+        }
     } catch (error) {
-        console.error('Error modifying permissions:', error);
+        console.error(`Error handling /${commandName}:`, error);
         await interaction.reply({
-            content: 'Failed to edit channel permissions. Check my role position and permissions!',
+            content: 'Something went wrong running that command. Check my role position and permissions!',
             ephemeral: true
         });
     }
