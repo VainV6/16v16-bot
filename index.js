@@ -110,9 +110,9 @@ client.on('voiceStateUpdate', async (oldState, newState) => {
 
     let message = null;
     if (!oldState.channel && newState.channel) {
-        message = `🔊 **${member.user.tag}** joined **${newState.channel.name}**`;
+        message = `🟢 ${member.user.tag} joined ${newState.channel.name}`;
     } else if (oldState.channel && !newState.channel) {
-        message = `🔇 **${member.user.tag}** left **${oldState.channel.name}**`;
+        message = `🔴 ${member.user.tag} left ${oldState.channel.name}`;
     } else if (oldState.channel && newState.channel && oldState.channel.id !== newState.channel.id) {
         message = `🔀 **${member.user.tag}** moved from **${oldState.channel.name}** to **${newState.channel.name}**`;
     }
