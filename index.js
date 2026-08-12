@@ -85,22 +85,24 @@ client.on('interactionCreate', async interaction => {
         });
     }
 
+    const occupancy = `(${voiceChannel.members.size}/${voiceChannel.userLimit || '∞'})`;
+
     try {
         if (commandName === 'lock') {
             await voiceChannel.permissionOverwrites.edit(VERIFIED_ROLE_ID, { Connect: false });
             await voiceChannel.permissionOverwrites.edit(MEMBER_ROLE_ID, { Connect: false });
 
             await interaction.reply({
-                content: `🔒 **${voiceChannel.name}** is now locked.`
+                content: `🔒 **${voiceChannel.name}** ${occupancy} is now locked.`
             });
-        } 
-        
+        }
+
         else if (commandName === 'unlock') {
             await voiceChannel.permissionOverwrites.edit(VERIFIED_ROLE_ID, { Connect: null });
             await voiceChannel.permissionOverwrites.edit(MEMBER_ROLE_ID, { Connect: null });
 
             await interaction.reply({
-                content: `🔓 **${voiceChannel.name}** is now unlocked.`
+                content: `🔓 **${voiceChannel.name}** ${occupancy} is now unlocked.`
             });
         }
     } catch (error) {
