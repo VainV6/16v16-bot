@@ -254,12 +254,12 @@ client.on('interactionCreate', async interaction => {
 
                 const userId = userIds.get(robloxUsername.toLowerCase());
                 if (!userId) {
-                    return `🔴 ${vcMember.user.tag} → @${robloxUsername} (Roblox account not found)`;
+                    return `🔴 @${robloxUsername} (Roblox account not found)`;
                 }
 
                 const sameLobby = invokerGameId !== null && presences.get(userId)?.gameId === invokerGameId;
                 const dot = sameLobby ? '🟢' : '🔴';
-                return `${dot} ${vcMember.user.tag} → @${robloxUsername}`;
+                return `${dot} @${robloxUsername}`;
             });
 
             const header = invokerGameId
