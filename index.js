@@ -64,21 +64,29 @@ function isGuildVoiceEmpty(guild) {
         .every(channel => channel.members.size === 0);
 }
 
+function isVoiceLogMessage(message) {
+    return message.author.id === client.user.id &&
+        (message.content.startsWith('🟢') || message.content.startsWith('🔴') || message.content.startsWith('🔀'));
+}
+
 async function clearLogChannel(guild) {
     const logChannel = guild.channels.cache.get(LOG_CHANNEL_ID);
     if (!logChannel) return;
 
     try {
-        let deletedInBatch;
+        let fetchedCount;
         do {
             const messages = await logChannel.messages.fetch({ limit: 100 });
-            if (messages.size === 0) break;
+            fetchedCount = messages.size;
+            if (fetchedCount === 0) break;
 
-            const deleted = await logChannel.bulkDelete(messages, true);
-            deletedInBatch = deleted.size;
-        } while (deletedInBatch === 100);
+            const voiceLogMessages = messages.filter(isVoiceLogMessage);
+            if (voiceLogMessages.size > 0) {
+                await logChannel.bulkDelete(voiceLogMessages, true);
+            }
+        } while (fetchedCount === 100);
 
-        console.log('Cleared log channel after 60 minutes of no voice activity.');
+        console.log('Cleared voice join/leave log messages after 60 minutes of no voice activity.');
     } catch (error) {
         console.error('Error clearing log channel:', error);
     }
@@ -140,18 +148,26 @@ client.on('interactionCreate', async interaction => {
             await voiceChannel.permissionOverwrites.edit(VERIFIED_ROLE_ID, { Connect: false });
             await voiceChannel.permissionOverwrites.edit(MEMBER_ROLE_ID, { Connect: false });
 
-            await interaction.reply({
-                content: `🔒 **${voiceChannel.name}** ${occupancy} is now locked.`
-            });
+            const lockMessage = `🔒 **${voiceChannel.name}** ${occupancy} is now locked.`;
+            await interaction.reply({ content: lockMessage });
+            if (voiceChannel.id !== interaction.channelId) {
+                await voiceChannel.send(lockMessage).catch(error =>
+                    console.error('Error sending lock notice in voice chat:', error)
+                );
+            }
         }
 
         else if (commandName === 'unlock') {
             await voiceChannel.permissionOverwrites.edit(VERIFIED_ROLE_ID, { Connect: null });
             await voiceChannel.permissionOverwrites.edit(MEMBER_ROLE_ID, { Connect: null });
 
-            await interaction.reply({
-                content: `🔓 **${voiceChannel.name}** ${occupancy} is now unlocked.`
-            });
+            const unlockMessage = `🔓 **${voiceChannel.name}** ${occupancy} is now unlocked.`;
+            await interaction.reply({ content: unlockMessage });
+            if (voiceChannel.id !== interaction.channelId) {
+                await voiceChannel.send(unlockMessage).catch(error =>
+                    console.error('Error sending unlock notice in voice chat:', error)
+                );
+            }
         }
     } catch (error) {
         console.error('Error modifying permissions:', error);
