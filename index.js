@@ -3,6 +3,7 @@ const {
     GatewayIntentBits,
     SlashCommandBuilder,
     PermissionFlagsBits,
+    ChannelType,
     REST,
     Routes
 } = require('discord.js');
@@ -33,12 +34,24 @@ const client = new Client({
 const commands = [
     new SlashCommandBuilder()
         .setName('lock')
-        .setDescription('Locks your current voice channel for verified users.')
+        .setDescription('Locks a voice channel for verified users.')
+        .addChannelOption(option =>
+            option.setName('channel')
+                .setDescription('The voice channel to lock (defaults to your current channel)')
+                .addChannelTypes(ChannelType.GuildVoice)
+                .setRequired(false)
+        )
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 
     new SlashCommandBuilder()
         .setName('unlock')
-        .setDescription('Unlocks your current voice channel for verified users.')
+        .setDescription('Unlocks a voice channel for verified users.')
+        .addChannelOption(option =>
+            option.setName('channel')
+                .setDescription('The voice channel to unlock (defaults to your current channel)')
+                .addChannelTypes(ChannelType.GuildVoice)
+                .setRequired(false)
+        )
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
 ].map(command => command.toJSON());
 
@@ -63,11 +76,11 @@ client.on('interactionCreate', async interaction => {
     if (!interaction.isChatInputCommand()) return;
 
     const { commandName, member } = interaction;
-    const voiceChannel = member.voice.channel;
+    const voiceChannel = interaction.options.getChannel('channel') ?? member.voice.channel;
 
     if (!voiceChannel) {
         return interaction.reply({
-            content: 'You must join a voice channel first to lock or unlock it',
+            content: 'You must join a voice channel first or specify one with the `channel` option.',
             ephemeral: true
         });
     }
