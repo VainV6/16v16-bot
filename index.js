@@ -21,6 +21,7 @@ const CLIENT_ID = process.env.CLIENT_ID;
 const GUILD_ID = process.env.GUILD_ID;
 const VERIFIED_ROLE_ID = process.env.VERIFIED_ROLE_ID;
 const MEMBER_ROLE_ID = process.env.MEMBER_ROLE_ID;
+const LOG_CHANNEL_ID = process.env.LOG_CHANNEL_ID;
 
 const client = new Client({
     intents: [
@@ -95,6 +96,33 @@ client.on('interactionCreate', async interaction => {
             content: 'Failed to edit channel permissions. Check my role position and permissions!',
             ephemeral: true
         });
+    }
+});
+
+client.on('voiceStateUpdate', async (oldState, newState) => {
+    if (!LOG_CHANNEL_ID) return;
+
+    const logChannel = newState.guild.channels.cache.get(LOG_CHANNEL_ID);
+    if (!logChannel) return;
+
+    const member = newState.member ?? oldState.member;
+    if (!member) return;
+
+    let message = null;
+    if (!oldState.channel && newState.channel) {
+        message = `🔊 **${member.user.tag}** joined **${newState.channel.name}**`;
+    } else if (oldState.channel && !newState.channel) {
+        message = `🔇 **${member.user.tag}** left **${oldState.channel.name}**`;
+    } else if (oldState.channel && newState.channel && oldState.channel.id !== newState.channel.id) {
+        message = `🔀 **${member.user.tag}** moved from **${oldState.channel.name}** to **${newState.channel.name}**`;
+    }
+
+    if (message) {
+        try {
+            await logChannel.send(message);
+        } catch (error) {
+            console.error('Error sending voice log message:', error);
+        }
     }
 });
 
