@@ -8,8 +8,20 @@ const {
     Routes
 } = require('discord.js');
 const http = require('http');
+const fs = require('fs');
+const path = require('path');
 
 require('dotenv').config();
+
+const ROBLOX_OVERRIDES_PATH = path.join(__dirname, 'roblox-overrides.json');
+let robloxOverrides = {};
+try {
+    const raw = JSON.parse(fs.readFileSync(ROBLOX_OVERRIDES_PATH, 'utf8'));
+    delete raw._comment;
+    robloxOverrides = raw;
+} catch (error) {
+    console.error('Error loading roblox-overrides.json:', error);
+}
 
 const PORT = process.env.PORT || 3000;
 http.createServer((req, res) => {
@@ -70,6 +82,8 @@ const ROBLOX_NAME_PATTERN = /\(@([^)]+)\)/;
 const BEDWARS_PLACE_ID = 6872265039;
 
 function getRobloxUsername(member) {
+    if (robloxOverrides[member.id]) return robloxOverrides[member.id];
+
     const match = member.displayName.match(ROBLOX_NAME_PATTERN);
     return match ? match[1] : null;
 }
