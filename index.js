@@ -220,7 +220,15 @@ client.on('interactionCreate', async interaction => {
             await voiceChannel.permissionOverwrites.edit(VERIFIED_ROLE_ID, { Connect: false });
             await voiceChannel.permissionOverwrites.edit(MEMBER_ROLE_ID, { Connect: false });
 
-            const lockMessage = `🔒 **${voiceChannel.name}** ${occupancy} is now locked.`;
+            const membersToKick = [...voiceChannel.members.values()];
+            await Promise.all(membersToKick.map(vcMember =>
+                vcMember.voice.disconnect('Voice channel locked').catch(error =>
+                    console.error(`Error disconnecting ${vcMember.user.tag}:`, error)
+                )
+            ));
+
+            const lockMessage = `🔒 **${voiceChannel.name}** ${occupancy} is now locked.` +
+                (membersToKick.length ? ` Kicked ${membersToKick.length} member(s).` : '');
             await interaction.reply({ content: lockMessage });
             if (voiceChannel.id !== interaction.channelId) {
                 await voiceChannel.send(lockMessage).catch(error =>
