@@ -88,6 +88,11 @@ function getRobloxUsername(member) {
     return match ? match[1] : null;
 }
 
+function formatMemberLabel(member) {
+    const robloxUsername = getRobloxUsername(member);
+    return robloxUsername ? `${member.user.tag} (@${robloxUsername})` : member.user.tag;
+}
+
 async function fetchRobloxUserIds(usernames) {
     const userIds = new Map();
     if (usernames.length === 0) return userIds;
@@ -307,18 +312,20 @@ client.on('voiceStateUpdate', async (oldState, newState) => {
     const member = newState.member ?? oldState.member;
     if (!member) return;
 
+    const memberLabel = formatMemberLabel(member);
+
     let message = null;
     if (!oldState.channel && newState.channel) {
-        message = `🟢 ${member.user.tag} joined ${newState.channel.name}`;
+        message = `🟢 ${memberLabel} joined ${newState.channel.name}`;
 
         const { userLimit, members } = newState.channel;
         if (userLimit > 0 && members.size > userLimit) {
             message += ` ⚠️ (bypassed limit, ${members.size}/${userLimit})`;
         }
     } else if (oldState.channel && !newState.channel) {
-        message = `🔴 ${member.user.tag} left ${oldState.channel.name}`;
+        message = `🔴 ${memberLabel} left ${oldState.channel.name}`;
     } else if (oldState.channel && newState.channel && oldState.channel.id !== newState.channel.id) {
-        message = `🔀 **${member.user.tag}** moved from **${oldState.channel.name}** to **${newState.channel.name}**`;
+        message = `🔀 **${memberLabel}** moved from **${oldState.channel.name}** to **${newState.channel.name}**`;
     }
 
     if (message) {
