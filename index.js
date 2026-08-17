@@ -217,6 +217,7 @@ client.on('interactionCreate', async interaction => {
 
     try {
         if (commandName === 'lock') {
+            await voiceChannel.permissionOverwrites.edit(voiceChannel.guild.roles.everyone, { Connect: false });
             await voiceChannel.permissionOverwrites.edit(VERIFIED_ROLE_ID, { Connect: false });
             await voiceChannel.permissionOverwrites.edit(MEMBER_ROLE_ID, { Connect: false });
 
@@ -238,6 +239,7 @@ client.on('interactionCreate', async interaction => {
         }
 
         else if (commandName === 'unlock') {
+            await voiceChannel.permissionOverwrites.edit(voiceChannel.guild.roles.everyone, { Connect: null });
             await voiceChannel.permissionOverwrites.edit(VERIFIED_ROLE_ID, { Connect: null });
             await voiceChannel.permissionOverwrites.edit(MEMBER_ROLE_ID, { Connect: null });
 
