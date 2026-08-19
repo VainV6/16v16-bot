@@ -349,4 +349,11 @@ client.on('voiceStateUpdate', async (oldState, newState) => {
     refreshEmptyVcTimer(newState.guild);
 });
 
-client.login(TOKEN);
+process.on('unhandledRejection', error => {
+    console.error('Unhandled promise rejection:', error);
+});
+
+client.login(TOKEN).catch(error => {
+    console.error('Failed to log in to Discord:', error);
+    process.exit(1);
+});
